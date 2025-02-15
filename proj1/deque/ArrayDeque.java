@@ -6,12 +6,14 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
     private int size;
     private int capacity = 100;
     private T[] array;
+
     public ArrayDeque() {
         size = 0;
         array = (T[]) new Object[capacity];
     }
 
-    /** Add method:
+    /**
+     * Add method:
      * must not involve any looping or recursion.
      * A single such operation must take “constant time”.
      * i.e. execution time should not depend on the size of the deque.
@@ -56,7 +58,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         /* Prints the items in the deque from first to last, separated by a space.
         Once all the items have been printed, print out a new line.
          */
-        for (int i=0; i<size; i++) {
+        for (int i = 0; i < size; i++) {
             System.out.print(array[i] + " ");
         }
         System.out.println();
@@ -69,11 +71,11 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         if (size == 0) {
             return null;
         }
-        if (size < capacity/4) {
-            capacity = capacity/4;
+        if (size < capacity / 4) {
+            capacity = capacity / 4;
         }
         T[] tmp = (T[]) new Object[capacity];
-        System.arraycopy(array, 1, tmp, 0, size-1);
+        System.arraycopy(array, 1, tmp, 0, size - 1);
         size = size - 1;
         T rm = array[0];
         array = tmp;
@@ -84,14 +86,15 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         if (size == 0) {
             return null;
         }
-        if (size < capacity/4) {
-            capacity = capacity/4;
+        if (size < capacity / 4) {
+            capacity = capacity / 4;
+            T[] tmp = (T[]) new Object[capacity];
+            System.arraycopy(array, 0, tmp, 0, size - 1);
+            array = tmp;
         }
-        T[] tmp = (T[]) new Object[capacity];
-        System.arraycopy(array, 0, tmp, 0, size-1);
         size = size - 1;
         T rm = array[size];
-        array = tmp;
+        array[size] = null;
         return rm;
     }
 
@@ -106,8 +109,9 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         return array[index];
     }
 
-    private class Aiterator implements Iterator<T>{
+    private class Aiterator implements Iterator<T> {
         int pos;
+
         public Aiterator() {
             pos = -1;
         }
@@ -128,4 +132,26 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
     public Iterator<T> iterator() {
         return new Aiterator();
     }
+
+    @Override
+    public boolean equals(Object o) {
+        /* Returns whether or not the parameter o is equal to the Deque.
+         o is considered equal if it is a Deque and if it contains the same contents
+         (as goverened by the generic T’s equals method) in the same order.
+         (ADDED 2/12: You’ll need to use the instance of keywords for this.)
+         */
+        if (o instanceof LinkedListDeque ad) {
+            if (ad.size() != size) {
+                return false;
+            }
+            for (int i = 0; i < size; i++) {
+                if (!array[i].equals(ad.get(i))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
 }

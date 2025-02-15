@@ -1,10 +1,13 @@
 package deque;
 
 import org.junit.Test;
+
 import static org.junit.Assert.*;
 
 
-/** Performs some basic linked list tests. */
+/**
+ * Performs some basic linked list tests.
+ */
 public class ArrayDequeTest {
 
     @Test
@@ -85,8 +88,8 @@ public class ArrayDequeTest {
     public void multipleParamTest() {
 
 
-        ArrayDeque<String>  ad1 = new ArrayDeque<String>();
-        ArrayDeque<Double>  lld2 = new ArrayDeque<Double>();
+        ArrayDeque<String> ad1 = new ArrayDeque<String>();
+        ArrayDeque<Double> lld2 = new ArrayDeque<Double>();
         ArrayDeque<Boolean> lld3 = new ArrayDeque<Boolean>();
 
         ad1.addFirst("string");
@@ -131,7 +134,7 @@ public class ArrayDequeTest {
 
         for (double i = 0; i < 50000; i++) {
             assertEquals("Should have the same value", i, (double) ad1.removeFirst(), 0.0);
-            assertEquals((int)(99999 - i), ad1.size());
+            assertEquals((int) (99999 - i), ad1.size());
         }
 
         for (double i = 99999; i > 50000; i--) {

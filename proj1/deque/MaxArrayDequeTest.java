@@ -2,7 +2,9 @@ package deque;
 
 import jh61b.junit.In;
 import org.junit.Test;
+
 import static org.junit.Assert.*;
+
 import java.util.Comparator;
 
 public class MaxArrayDequeTest {
@@ -11,11 +13,11 @@ public class MaxArrayDequeTest {
         class IntComparator implements Comparator<Integer> {
             @Override
             public int compare(Integer o1, Integer o2) {
-                return o1-o2;
+                return o1 - o2;
             }
         }
         MaxArrayDeque<Integer> intArrayDeque = new MaxArrayDeque<>(new IntComparator());
-        for (int i = 0; i<100; i++) {
+        for (int i = 0; i < 100; i++) {
             intArrayDeque.addLast(i);
         }
         int max = intArrayDeque.max();
@@ -48,7 +50,7 @@ public class MaxArrayDequeTest {
         class IntComparator implements Comparator<Integer> {
             @Override
             public int compare(Integer o1, Integer o2) {
-                return o1-o2;
+                return o1 - o2;
             }
         }
         MaxArrayDeque<Integer> intArrayDeque = new MaxArrayDeque<>(new IntComparator());

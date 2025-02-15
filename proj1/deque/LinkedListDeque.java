@@ -5,6 +5,7 @@ import java.util.Iterator;
 public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     private int size;
     private ListNode<T> sentinel;
+    private ListNode<T> pointer;
 
     public class ListNode<T> {
         private T num;
@@ -42,7 +43,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     }
 
-    public LinkedListDeque(){
+    public LinkedListDeque() {
         /* create an empty list deque*
          *
          */
@@ -50,13 +51,11 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         sentinel.setBefore(sentinel);
         sentinel.setAfter(sentinel);
         size = 0;
+        pointer = sentinel;
     }
 
-    public ListNode<T> getSentinel() {
-        return sentinel;
-    }
-
-    /** Add method:
+    /**
+     * Add method:
      * must not involve any looping or recursion.
      * A single such operation must take “constant time”.
      * i.e. execution time should not depend on the size of the deque.
@@ -102,7 +101,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         Once all the items have been printed, print out a new line.
          */
         ListNode<T> node = sentinel;
-        for (int i=0; i<size; i++) {
+        for (int i = 0; i < size; i++) {
             node = node.getAfter();
             System.out.print(node.getNum() + " ");
         }
@@ -149,7 +148,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         }
         ListNode<T> node = sentinel;
         node = node.getAfter();
-        for (int i=0; i<index; i++) {
+        for (int i = 0; i < index; i++) {
             node = node.getAfter();
         }
         return node.getNum();
@@ -166,30 +165,48 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
          (as goverened by the generic T’s equals method) in the same order.
          (ADDED 2/12: You’ll need to use the instance of keywords for this.)
          */
+        if (o instanceof LinkedListDeque lld) {
+            if (lld.size() != size) {
+                return false;
+            }
+            for (int i = 0; i < size; i++) {
+                pointer = pointer.getAfter();
+                if (!pointer.getNum().equals(lld.get(i))) {
+                    return false;
+                }
+            }
+            return true;
+        }
         return false;
     }
 
-    public T getRecursive(ListNode<T> node, int index){
+    public T getRecursive(int index) {
         /* Same as get, but uses recursion.
-        *
-        */
+         *
+         */
         if (index >= size || index < 0) {
             return null;
         }
         if (index == 0) {
-            return node.getAfter().getNum();
+            T res = pointer.getAfter().getNum();
+            pointer = sentinel;
+            return res;
         }
-        return getRecursive(node.getAfter(), index-1);
+        pointer = pointer.getAfter();
+        return getRecursive(index - 1);
     }
 
     private class LLiterator implements Iterator<T> {
         private ListNode<T> node;
+
         public LLiterator() {
             node = sentinel;
         }
+
         public boolean hasNext() {
-            return node.getAfter()!=sentinel;
+            return node.getAfter() != sentinel;
         }
+
         public T next() {
             node = node.getAfter();
             return node.getNum();
