@@ -168,7 +168,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         if (o == null) {
             return false;
         }
-        if (o.getClass() == this.getClass() || o.getClass() == (new ArrayDeque<>()).getClass()) {
+        if (o.getClass() == this.getClass() || o.getClass() == ArrayDeque.class) {
 //        if (o instanceof LinkedListDeque lld) {
             Deque<T> lld = (Deque) o;
             if (lld.size() != size) {
@@ -177,9 +177,11 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
             for (int i = 0; i < size; i++) {
                 pointer = pointer.getAfter();
                 if (!pointer.getNum().equals(lld.get(i))) {
+                    pointer = sentinel;
                     return false;
                 }
             }
+            pointer = sentinel;
             return true;
         }
         return false;

@@ -4,7 +4,7 @@ import java.util.Iterator;
 
 public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
     private int size;
-    private int capacity = 100;
+    private int capacity = 8;
     private T[] array;
 
     public ArrayDeque() {
@@ -71,7 +71,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         if (size == 0) {
             return null;
         }
-        if (size < capacity / 4) {
+        if (size < capacity / 4 && size > 16) {
             capacity = capacity / 4;
         }
         T[] tmp = (T[]) new Object[capacity];
@@ -86,7 +86,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         if (size == 0) {
             return null;
         }
-        if (size < capacity / 4) {
+        if (size < capacity / 4 && size > 16) {
             capacity = capacity / 4;
             T[] tmp = (T[]) new Object[capacity];
             System.arraycopy(array, 0, tmp, 0, size);
@@ -143,7 +143,8 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         if (o == null) {
             return false;
         }
-        if (o.getClass() == this.getClass() || o.getClass() == (new LinkedListDeque<>()).getClass()) {
+        if (o.getClass() == ArrayDeque.class
+                || o.getClass() == LinkedListDeque.class) {
 //        if (o instanceof ArrayDeque lld) {
             Deque<T> ad = (Deque) o;
             if (ad.size() != size) {

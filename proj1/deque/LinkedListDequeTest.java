@@ -175,4 +175,36 @@ public class LinkedListDequeTest {
             j = j + 1;
         }
     }
+
+    @Test
+    public void equalTest() {
+        LinkedListDeque<Integer> lld1 = new LinkedListDeque<>();
+        for (int i = 0; i < 100; i++) {
+            lld1.addLast(i);
+        }
+        ArrayDeque<Integer> ad1 = new ArrayDeque<>();
+        for (int i = 0; i < 100; i++) {
+            ad1.addLast(i);
+        }
+        LinkedListDeque<Integer> lld2 = new LinkedListDeque<>();
+        for (int i = 0; i < 100; i++) {
+            lld2.addLast(i);
+        }
+        LinkedListDeque<Integer> lld3 = new LinkedListDeque<>();
+        for (int i = 0; i < 100; i++) {
+            lld3.addLast(i * 3);
+        }
+        LinkedListDeque<Integer> lld4 = new LinkedListDeque<>();
+        for (int i = 0; i < 10; i++) {
+            lld4.addLast(i);
+        }
+        assertTrue("same LinkedListDeque but returns false", lld1.equals(lld2));
+        assertTrue("LinkedListDeque and ArrayDeque with same members " +
+                "should return true", lld1.equals(ad1));
+        assertFalse("compare with null but returns true", lld1.equals(null));
+        assertFalse("LinkedListDeque with same size but different " +
+                "contents should return false", lld1.equals(lld3));
+        assertFalse("LinkedListDeque with differenr size " +
+                "should return false", lld1.equals(lld4));
+    }
 }
