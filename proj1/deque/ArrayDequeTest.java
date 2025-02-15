@@ -147,4 +147,17 @@ public class ArrayDequeTest {
         }
         ad1.printDeque();
     }
+
+    @Test
+    public void iteratorTest() {
+        ArrayDeque<Integer> ad1 = new ArrayDeque<>();
+        for (int i = 0; i < 100; i++) {
+            ad1.addLast(i);
+        }
+        int j = 0;
+        for (int i : ad1) {
+            assertEquals(j, i);
+            j = j + 1;
+        }
+    }
 }
