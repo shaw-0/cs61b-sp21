@@ -165,9 +165,12 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
          (as goverened by the generic T’s equals method) in the same order.
          (ADDED 2/12: You’ll need to use the instance of keywords for this.)
          */
-        if (o.getClass() == this.getClass()) {
+        if (o == null) {
+            return false;
+        }
+        if (o.getClass() == this.getClass() || o.getClass() == (new ArrayDeque<>()).getClass()) {
 //        if (o instanceof LinkedListDeque lld) {
-            LinkedListDeque<T> lld = (LinkedListDeque) o;
+            Deque<T> lld = (Deque) o;
             if (lld.size() != size) {
                 return false;
             }

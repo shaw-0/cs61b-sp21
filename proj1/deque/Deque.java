@@ -9,9 +9,9 @@ public interface Deque<T> {
      * A single such operation must take “constant time”.
      * i.e. execution time should not depend on the size of the deque.
      */
-    public void addFirst(T item);
+    void addFirst(T item);
 
-    public void addLast(T item);
+    void addLast(T item);
 
     default boolean isEmpty() {
         if (this.size() == 0) {
@@ -20,14 +20,14 @@ public interface Deque<T> {
         return false;
     }
 
-    public int size();
+    int size();
 
-    public void printDeque();
+    void printDeque();
 
-    public T removeFirst();
+    T removeFirst();
 
-    public T removeLast();
+    T removeLast();
 
-    public T get(int index);
+    T get(int index);
 
 }

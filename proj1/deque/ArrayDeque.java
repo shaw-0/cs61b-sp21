@@ -89,7 +89,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         if (size < capacity / 4) {
             capacity = capacity / 4;
             T[] tmp = (T[]) new Object[capacity];
-            System.arraycopy(array, 0, tmp, 0, size - 1);
+            System.arraycopy(array, 0, tmp, 0, size);
             array = tmp;
         }
         size = size - 1;
@@ -112,7 +112,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
     private class Aiterator implements Iterator<T> {
         int pos;
 
-        public Aiterator() {
+        Aiterator() {
             pos = -1;
         }
 
@@ -140,9 +140,12 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
          (as goverened by the generic T’s equals method) in the same order.
          (ADDED 2/12: You’ll need to use the instance of keywords for this.)
          */
-        if (o.getClass() == this.getClass()) {
+        if (o == null) {
+            return false;
+        }
+        if (o.getClass() == this.getClass() || o.getClass() == (new LinkedListDeque<>()).getClass()) {
 //        if (o instanceof ArrayDeque lld) {
-            ArrayDeque<T> ad = (ArrayDeque) o;
+            Deque<T> ad = (Deque) o;
             if (ad.size() != size) {
                 return false;
             }
