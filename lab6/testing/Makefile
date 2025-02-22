@@ -10,7 +10,7 @@ SHELL = /bin/bash
 # Flags to Java interpreter: check assertions
 JFLAGS = -ea
 
-# See comment in ../Makefile
+# See comment in ../Make file
 PYTHON = python3
 
 RMAKE = "$(MAKE)"
