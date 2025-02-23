@@ -1,6 +1,8 @@
 package bstmap;
 
 import static org.junit.Assert.*;
+
+import jh61b.junit.In;
 import org.junit.Test;
 
 /** Tests by Brendan Hu, Spring 2015, revised for 2016 by Josh Hug */
@@ -85,6 +87,19 @@ public class TestBSTMap {
         BSTMap<String, Integer> b = new BSTMap<String, Integer>();
         b.put("hi", null);
         assertTrue(b.containsKey("hi"));
+    }
+
+    @Test
+    public void putTest() {
+          BSTMap<String, Integer> map = new BSTMap<>();
+          map.put("a", 1);
+          map.put("b", 2);
+          map.put("c", 3);
+          map.put("d", 4);
+          map.put("e", 5);
+          map.put("f", 6);
+          map.put("a", 1);
+          map.printInOrder();
     }
 
 }
