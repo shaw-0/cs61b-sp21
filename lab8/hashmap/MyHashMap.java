@@ -91,7 +91,7 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
      * OWN BUCKET DATA STRUCTURES WITH THE NEW OPERATOR!
      */
     protected Collection<Node> createBucket() {
-        return new ArrayList<>();
+        return new HashSet<>();
     }
 
     /**
@@ -165,22 +165,12 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
 
     @Override
     public void put(K key, V value) {
-        boolean contains = containsKey(key);
         int idx = Math.floorMod(key.hashCode(), maxSize);
-        if (contains) {
-            Iterator<Node> iter = buckets[idx].iterator();
-            while (iter.hasNext()) {
-                Node tmp = iter.next();
-                if (key.equals(tmp.key)) {
-                    buckets[idx].remove(tmp);
-                    break;
-                }
-            }
+        if (containsKey(key)) {
+            remove(key);
         }
         buckets[idx].add(new Node(key, value));
-        if (!contains) {
-            updateParam();
-        }
+        updateParam();
     }
 
     @Override
@@ -195,12 +185,50 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
 
     @Override
     public V remove(K key) {
-        return null;
+        if (!containsKey(key)) {
+            return null;
+        }
+        int idx = Math.floorMod(key.hashCode(), maxSize);
+        Iterator<Node> iter = buckets[idx].iterator();
+        Node tmp = null;
+        while (iter.hasNext()) {
+            tmp = iter.next();
+            if (key.equals(tmp.key)) {
+                buckets[idx].remove(tmp);
+                break;
+            }
+            tmp = null;
+        }
+        if (tmp == null) {
+            return null;
+        }
+        size = size - 1;
+        load = (size + 0.0) / maxSize;
+        return tmp.value;
     }
 
     @Override
     public V remove(K key, V value) {
-        return null;
+        if (!containsKey(key)) {
+            return null;
+        }
+        int idx = Math.floorMod(key.hashCode(), maxSize);
+        Iterator<Node> iter = buckets[idx].iterator();
+        Node tmp = null;
+        while (iter.hasNext()) {
+            tmp = iter.next();
+            if (key.equals(tmp.key) && value.equals(tmp.value)) {
+                buckets[idx].remove(tmp);
+                break;
+            }
+            tmp = null;
+        }
+        if (tmp == null) {
+            return null;
+        }
+        size = size - 1;
+        load = (size + 0.0) / maxSize;
+        return tmp.value;
     }
 
     private class HashMapIterator implements Iterator<K> {
