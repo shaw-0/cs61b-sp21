@@ -166,8 +166,13 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
     @Override
     public void put(K key, V value) {
         int idx = Math.floorMod(key.hashCode(), maxSize);
-        if (containsKey(key)) {
-            remove(key);
+        Iterator<Node> iter = buckets[idx].iterator();
+        while (iter.hasNext()) {
+            Node tmp = iter.next();
+            if (key.equals(tmp.key)) {
+                tmp.value = value;
+                return;
+            }
         }
         buckets[idx].add(new Node(key, value));
         updateParam();
