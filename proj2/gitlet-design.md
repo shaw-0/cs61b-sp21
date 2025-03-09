@@ -22,8 +22,8 @@
 1. static final File CWD，程序当前工作目录。
 2. static final File GITLET_FOLDER，存储gitlet状态的目录。
 3. static final File BLOBS_FOLDER，存储blobs的目录。
-4. static final File ADD_STAGING，添加暂存目录。
-5. static final File RM_STAGING，删除暂存目录。
+4. static final File STAGING_FOLDER，添加暂存目录。
+5. static final File 
 6. static final File COMMIT_FOLDER，存储commit信息的目录。
 
 ### Commit
@@ -39,20 +39,7 @@ commit类包括：date、msg与当前版本文件列表与**blob对应的哈希�
 
 #### Fields
 
-1. 
-
-### CommitTree
-
-用来描述提交情况的类，包括父指针、date、msg与对应commit的**哈希值**。
-
-按照java序列化遵循指针的说法，保存了最新节点就相当于保存了整棵树，而真正的commit文件作为哈希字符串被储存。
-存储大头在文件，但是其实commit存的也是哈希，好像也没方便到哪里去。
-
-#### Fields
-
-1. CommitTree parent，一般情况的parent。
-2. CommitTree parent_merge，merge情况的第二个parent，最多就俩parent别搞数组了
-3. String commit_ref，如同字面意思！就是对应commit的reference。
+1.
 
 ## Algorithms
 数据结构编不出来了，我先编算法
@@ -92,26 +79,7 @@ commit类包括：date、msg与当前版本文件列表与**blob对应的哈希�
 6. 最后看一眼删除区有没有
 7. failure case在最开始进行判断。
 
----
-我觉得需要考虑一下该死的暂存区的问题。
 
-如何确定一个文件是否被追踪？
-——曾经被add到暂存区的都追踪。
-
-如果一个文件在CWD中，但是没有被add过？
-——不追。
-
-如何确定文件追踪列表？
-——交给commit，让它存一下自己这个版本追踪了什么文件。
-
-暂存区里到底应该存什么？
-——存文件
-
-哈希值什么时候计算？
-——提交的时候，暂存区里的文件使用正常的文件名称
-
-提交的时候如何确定我该追踪的文件？
-——
 
 ### commit
 保存当前提交和暂存区中被跟踪文件的快照，创建一个新提交。 
@@ -173,6 +141,76 @@ commit类包括：date、msg与当前版本文件列表与**blob对应的哈希�
 
 - Runtime: 仅依赖于工作目录中的数据量，加上待添加或删除的文件数量，加上分支的数量。
 
+### checkout
+把不同版本的文件checkout出来。CWD中有的就覆盖，覆盖后的新版本不暂存。
+
+如果check的是个分支，那就把文件改成相应的分支（不能是目前的分支，即使做了修改）的样子，head也要指向那个分支。
+就完全变成这个分支的样子，增加的文件，删了！暂存的东西，删了！
+但是如果有未跟踪的文件，就报错退出。
+
+对id少于40个字符的commit来说，应当实现哈希前六位寻址。
+
+- Runtime：
+  - O(N), N=被检出的文件的大小。
+  - O(N), N=提交快照中所有文件的总大小
+  - O(1), N=涉及提交数量的任何度量与分支数量。
+
+
+### branch
+创建一个具有给定名称的新分支，并将其指向当前的头提交。
+此命令不会立即切换到新创建的分支。
+在调用branch之前，您的代码应该在一个名为“master”的默认分支上运行。
+
+- Runtime: O(1)
+
+### rm-branch
+删除具有给定名称的分支。
+仅意味着删除与该分支关联的指针；并不意味着删除在该分支下创建的所有提交或其他任何内容。
+不删除当前分支。
+
+- Runtime: O(1)
+
+这要怎么O(1)，分支多起来判断是否有这个分支不会慢起来吗。怎么着也得lgN啊。
+要把分支名称也变成哈希吗……不至于吧真的。
+
+
+### reset
+**reuse your code :)**
+
+检出由给定提交跟踪的所有文件。
+该命令本质上是对任意提交的检出，同时也更改当前分支的头指针。
+
+
+### merge
+将当前分支与给定分支合并。做出的修改自动暂存，然后自动提交，提交时标记为合并。
+
+如果分裂点与给定分支是同一个提交：不做任何操作。
+
+如果分裂点是当前分支：检出给定分支
+
+在给定分支中被修改但在当前分支中未被修改的文件：
+更改为给定分支中的版本（从给定分支前面的提交中检出）。这些文件应自动暂存。
+
+在当前分支中被修改但在给定分支中自分裂点以来未被修改的任何文件：保持不变。
+
+在当前分支和给定分支中以相同方式被修改的任何文件（即，两个文件现在具有相同内容或都被删除）：保持不变。
+如果一个文件在当前分支和给定分支中都被删除，但在工作目录中存在同名文件，则该文件保持不变，并在合并中继续缺失（不被跟踪也不被暂存）。
+
+在分裂点不存在且仅在当前分支中存在的文件：持不变。
+
+在分裂点不存在且仅在给定分支中存在的文件：检出并暂存。
+
+在分裂点存在、在当前分支中未被修改且在给定分支中缺失的文件：删除且不被跟踪。
+
+在分裂点存在、在给定分支中未被修改且在当前分支中缺失的文件：保持缺失。
+
+在当前分支和给定分支中以不同方式被修改的任何文件存在冲突：替换文件内容
+“以不同方式被修改”可以意味着两个文件的内容都被更改且不同，或者一个文件的内容被更改而另一个文件被删除，或者文件在分裂点缺失且在给定分支和当前分支中具有不同内容。
+
+一旦根据上述内容更新了文件，并且分裂点不是当前分支或给定分支，合并将自动提交，日志消息为“已合并 [给定分支名称] 到 [当前分支名称]”。然后，如果合并遇到冲突，终端（而不是日志）将打印消息“遇到合并冲突”。
+
+- Runtime: O(NlgN+D)，N=两个分支的祖先提交的总数，D=这些提交下所有文件的数据总量。
+
 
 ## Persistence
 
@@ -181,21 +219,59 @@ commit类包括：date、msg与当前版本文件列表与**blob对应的哈希�
 ```
 CWD                             <==== current working directory
 └── .gitlet                     <==== All persistant data is stored within here
-    ├── head                    <==== 
+    ├── head                    <==== name of branch
+    └── branch                  <==== hokano branches
+        ├── master              <==== ref of commit
+        ├── ...
+        └── branchN
     └── staging                 <==== staging area
-    |   └── add
-    |       ├── file1
-    |       ├── file2
-    |       ├── ...
-    |       └── fileN
+        ├── add_list            <==== files need to be tracked or modified
+        ├── rm_list             <==== have been tracked, but removed! now!
+        └── add
+            ├── file1
+            ├── file2
+            ├── ...
+            └── fileN
     └── commit                  <==== All commits are stored in this directory
-    |   ├── commit1             <==== A commit file, whose name will be its hash code
-    |   ├── commit2
-    |   ├── ...
-    |   └── commitN
+        ├── commit1             <==== A commit file, whose name will be its hash code
+        ├── commit2
+        ├── ...
+        └── commitN
     └── blob                    <==== All blobs are stored in this directory
         ├── blob1               <==== blob file, whose name will be its hash code
         ├── blob2
         ├── ...
         └── blobN
 ```
+
+---
+考虑一下该死的持久性的问题。
+
+如何确定一个文件是否被追踪？
+——曾经被add到暂存区的都追踪。追踪的文件列表会存储在每个commit类里。当前工作更改的情况会由暂存区存储，提交的时候commit会整合add与rm暂存区的信息更新跟踪的文件列表，以及文件名指向的blob。
+
+暂存区里到底应该存什么？
+——对add：单开一个文件夹存储文件blob。add列表、rm列表由一个文件存储。
+
+对于指针相连的提交树，存一个就存一大片，怎么办？
+——不存储指针，父节点也是一个ref。
+
+log怎么办？
+——不怎么办，merge还是要显示俩父节点的ref的。老老实实ref寻址吧。
+
+global-log怎么办？
+——这可太好办了。
+
+ref寻址太慢了？
+——1. ……像git一样，先比较前俩字母，但是utils好像不给我这个机会；2. 反正utils的辅助方法会返回字母序文件，二分查找！
+
+head指针如何寻址？
+——head文件中存储相应的ref值
+
+哈希值什么时候计算？
+——提交的时候，暂存区里的文件使用正常的文件名称
+
+---
+持久性的设置：交给repository类，建立所有的文件夹
+
+
