@@ -66,7 +66,9 @@ public class Main {
                 }
                 break;
             case "log":
-                
+                Repository.log();
+                break;
+
         }
     }
 

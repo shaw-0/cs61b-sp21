@@ -2,6 +2,7 @@ package gitlet;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static gitlet.Utils.*;
@@ -73,7 +74,8 @@ public class Repository {
         Utils.writeObject(ADD_LIST, sl);
         Utils.writeObject(RM_LIST, sl);
         Commit firstCommit = new Commit("initial commit", new Date(0));
-        makeCommit(firstCommit, "master");
+        Utils.writeContents(HEAD_FILE, "master");
+        makeCommit(firstCommit);
     }
 
     /** whether a gitlet system exist
@@ -95,15 +97,14 @@ public class Repository {
      */
     public static void commit(String msg) {
         // get father commit
-        String branch = Utils.readContentsAsString(HEAD_FILE);
-        String fatherRef = Utils.readContentsAsString(join(BRANCH_DIR, branch));
-        Commit father = readObject(join(COMMIT_DIR, fatherRef), Commit.class);
+        String fatherRef = getHeadCommit();
+        Commit father = getCommitFromRef(fatherRef);
         // create new commit
         Commit child = new Commit(msg, new Date());
         child.trackFiles(father.getRefs());
         child.setFather(fatherRef);
         // make commit
-        makeCommit(child, branch);
+        makeCommit(child);
         for (String filename : plainFilenamesIn(ADD_DIR)) {
             File file = join(ADD_DIR, filename);
             file.delete();
@@ -119,9 +120,9 @@ public class Repository {
      *  update the branch file. overwrite the head file.(maybe redundant)
      *  @param commit commit class var
      */
-    private static void makeCommit(Commit commit, String branch) {
+    private static void makeCommit(Commit commit) {
         String ref = commit.saveCommit();
-        Utils.writeContents(HEAD_FILE, branch);
+        String branch = Utils.readContentsAsString(HEAD_FILE);
         File branchFile = Utils.join(BRANCH_DIR, branch);
         if (!branchFile.exists()) {
             try {
@@ -253,6 +254,11 @@ public class Repository {
         writeContents(file, blob);
     }
 
+    /** whether a commit exist.
+     *  judge by its hash value.
+     * @param ref
+     * @return
+     */
     public static boolean commitExist(String ref) {
         String fullRef = ref;
         if (ref.length() == 6) {
@@ -334,6 +340,36 @@ public class Repository {
         Commit branch = getCommitFromRef(commitRef);
         HashMap<String, String> map = branch.getRefs();
         return map.containsKey(fileName);
+    }
+
+    private static String getHeadCommit() {
+        String branch = Utils.readContentsAsString(HEAD_FILE);
+        return Utils.readContentsAsString(join(BRANCH_DIR, branch));
+    }
+
+    private static String getFatherRef(String commitRef) {
+        Commit c = getCommitFromRef(commitRef);
+        return c.getFather();
+    }
+
+    private static void commitLog(String ref) {
+        Commit c = getCommitFromRef(ref);
+        System.out.println("===");
+        System.out.println("commit " + ref);
+        Formatter fmt = new Formatter();
+        fmt.format("%ta %tb %te %tT %tY %tz", c.getDate(), c.getDate(),
+                c.getDate(), c.getDate(), c.getDate(), c.getDate());
+        System.out.println("Data: " + fmt);
+        System.out.println(c.getMessage());
+        System.out.println();
+    }
+
+    public static void log() {
+        String ref = getHeadCommit();
+        while (ref != null) {
+            commitLog(ref);
+            ref = getFatherRef(ref);
+        }
     }
 
 }
