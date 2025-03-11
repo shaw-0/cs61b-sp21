@@ -1,10 +1,7 @@
 package gitlet;
 
-import jdk.jshell.execution.Util;
-
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.*;
 
 import static gitlet.Utils.*;
@@ -80,7 +77,7 @@ public class Repository {
     }
 
     /** whether a gitlet system exist
-     *
+     *  check whether there are commits
      */
     public static boolean exist() {
         List<String> sl = Utils.plainFilenamesIn(COMMIT_DIR);
@@ -91,43 +88,36 @@ public class Repository {
         }
     }
 
-    private static Commit getFatherCommit() {
-        String branch = Utils.readContentsAsString(HEAD_FILE);
-        String fatherRef = Utils.readContentsAsString(join(BRANCH_DIR, branch));
-        return readObject(join(COMMIT_DIR, fatherRef), Commit.class);
-    }
-
-    private static Commit createCommit(Commit father, HashMap<String, Boolean> map, String msg) {
-        Commit child = new Commit(msg, new Date());
-    }
-
     /** make commit.
      *  all the process.
+     *  get father commit, create new commit file, save it, clear the staging area.
+     * @param msg user message of this commit
      */
     public static void commit(String msg) {
         // get father commit
-        Commit father = getFatherCommit();
-        // get add list and rm list
-        List<String> addList = Arrays.asList(readObject(ADD_LIST, String[].class));
-        List<String> rmList = Arrays.asList(readObject(RM_LIST, String[].class));
-        // get filename list that would be tracked
-        HashMap<String, Boolean> trakingFiles = new HashMap<>();
-        for (String filename : father.getRefs().keySet()) {
-            trakingFiles.put(filename, false);
-        }
-        for (String rm : rmList) {
-            trakingFiles.remove(rm);
-        }
-        for (String add : addList) {
-            trakingFiles.put(add, true);
-        }
+        String branch = Utils.readContentsAsString(HEAD_FILE);
+        String fatherRef = Utils.readContentsAsString(join(BRANCH_DIR, branch));
+        Commit father = readObject(join(COMMIT_DIR, fatherRef), Commit.class);
         // create new commit
-        Commit child = createCommit(father, trakingFiles, msg);
+        Commit child = new Commit(msg, new Date());
+        child.trackFiles(father.getRefs());
+        child.setFather(fatherRef);
         // make commit
+        makeCommit(child, branch);
+        for (String filename : plainFilenamesIn(ADD_DIR)) {
+            File file = join(ADD_DIR, filename);
+            file.delete();
+        }
+        String[] sl = {};
+        Utils.writeObject(ADD_LIST, sl);
+        Utils.writeObject(RM_LIST, sl);
     }
 
     /** already build a commit class var.
      *  do the commit(last half).
+     *  files are all tracked correctly, now save the commit,
+     *  update the branch file. overwrite the head file.(maybe redundant)
+     *  @param commit commit class var
      */
     private static void makeCommit(Commit commit, String branch) {
         String ref = commit.saveCommit();
@@ -143,8 +133,54 @@ public class Repository {
         Utils.writeContents(branchFile, ref);
     }
 
-    /** add.
+    /** add_list and rm_list are stored as Sting[].
+     *  convenient methods to change their contents.
+     * @param listFile ADD_LIST or RM_LIST
+     * @param add filename that need to be added to the list
+     */
+    private static void addItemsToListFile(File listFile, String add) {
+        List<String> addList = Arrays.asList(Utils.readObject(listFile, String[].class));
+        List<String> tmp = new ArrayList<>(addList);
+        if (!tmp.contains(add)) {
+            tmp.add(add);
+            Utils.writeObject(listFile, tmp.toArray(new String[0]));
+        }
+    }
+
+    /** convenient method to remove things from Sting[] files.
+     *  almost same as addItemsToListFile.
+     * @param listFile ADD_LIST or RM_LST.
+     * @param rm filename that need to be removed from the list.
+     */
+    private static void removeItemsFromListFile(File listFile, String rm) {
+        List<String> rmList = Arrays.asList(Utils.readObject(listFile, String[].class));
+        if (rmList.contains(rm)) {
+            List<String> tmp = new ArrayList<>(rmList);
+            tmp.remove(rm);
+            Utils.writeObject(listFile, tmp.toArray(new String[0]));
+        }
+    }
+
+//    private static String getHashOfFile(File dir, String filename) {
+//        File file = join(dir, filename);
+//        return getHashOfFile(file);
+//    }
+
+    /** get hash value of the file.
      *
+     * @param file file need to be handled
+     * @return hash value
+     */
+    private static String getHashOfFile(File file) {
+        byte[] content = Utils.readContents(file);
+        return Utils.sha1(content);
+    }
+
+    /** add.
+     *  if already removed, cancel the remove and add it to the staging area.
+     *  if already added, overwrite it. (if same, then nothing changes.)
+     *  if same with commit version, then do not add it.
+     * @param filename must be in CWD
      */
     public static void add(String filename) {
         File file = new File(filename);
@@ -152,28 +188,152 @@ public class Repository {
             System.out.println("File does not exist.");
             System.exit(0);
         }
+        removeItemsFromListFile(RM_LIST, filename);
+        String branch = readContentsAsString(HEAD_FILE);
+        File branchFile = join(BRANCH_DIR, branch);
+        String branchRef = readContentsAsString(branchFile);
+        Commit now = getCommitFromRef(branchRef);
+        if (now.getRefs().containsKey(filename)) {
+            String oldRef = now.getRefs().get(filename);
+            String newRef = getHashOfFile(file);
+            if (oldRef.equals(newRef)) {
+                return;
+            }
+        }
+        File copy = join(ADD_DIR, filename);
+        if (!copy.exists()) {
+            try {
+                copy.createNewFile();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        byte[] content = readContents(file);
+        Utils.writeContents(copy, content);
+        addItemsToListFile(ADD_LIST, filename);
+    }
+
+    /** check staging area to see if any changes are recorded.
+     *
+     * @return T or F
+     */
+    public static boolean changesExist() {
         List<String> addList = Arrays.asList(Utils.readObject(ADD_LIST, String[].class));
         List<String> rmList = Arrays.asList(Utils.readObject(RM_LIST, String[].class));
-        if (rmList.contains(filename)) {
-            List<String> tmp = new ArrayList<>(rmList);
-            tmp.remove(filename);
-            Utils.writeObject(RM_LIST, tmp.toArray(new String[0]));
-            return;
-        }
-        if (addList.contains(filename)) {
-            File old = Utils.join(ADD_DIR, filename);
-            if (!old.equals(file)) {
-                byte[] content = Utils.readContents(file);
-                Utils.writeContents(old, content);
+        return !(addList.isEmpty() && rmList.isEmpty());
+    }
+
+    /** check head file
+     *  check out file from last commit
+     * @param fileName
+     */
+    public static void checkCommitFile(String fileName) {
+        String branch = readContentsAsString(HEAD_FILE);
+        File branchFile = join(BRANCH_DIR, branch);
+        String branchRef = readContentsAsString(branchFile);
+        checkCommitFile(branchRef, fileName);
+    }
+
+    /** check commit file
+     * check file from ref String
+     * @param commitRef
+     * @param fileName
+     */
+    public static void checkCommitFile(String commitRef, String fileName) {
+        Commit branch = getCommitFromRef(commitRef);
+        byte[] blob = getFileContentFromCommit(branch, fileName);
+        File file = join(CWD, fileName);
+        if (!file.exists()) {
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        } else {
-            File copy = Utils.join(ADD_DIR, filename);
-            byte[] content = Utils.readContents(file);
-            Utils.writeContents(copy, content);
-            List<String> tmp = new ArrayList<>(addList);
-            tmp.add(filename);
-            Utils.writeObject(ADD_LIST, tmp.toArray(new String[0]));
         }
+        writeContents(file, blob);
+    }
+
+    public static boolean commitExist(String ref) {
+        String fullRef = ref;
+        if (ref.length() == 6) {
+            List<String> fileList = plainFilenamesIn(COMMIT_DIR);
+            for (String s : fileList) {
+                if (s.equals("tmp")) {
+                    continue;
+                }
+                if (ref.equals(s.substring(0, 6))) {
+                    fullRef = s;
+                }
+            }
+        }
+        List<String> commitList = plainFilenamesIn(COMMIT_DIR);
+        return commitList.contains(fullRef);
+    }
+
+    /** branch name known, get the commit of that brach.
+     *
+     * @param commitRef
+     * @return commit
+     */
+    private static Commit getCommitFromRef(String commitRef) {
+        String fullRef = commitRef;
+        if (commitRef.length() == 6) {
+            List<String> fileList = plainFilenamesIn(COMMIT_DIR);
+            for (String s : fileList) {
+                if (s.equals("tmp")) {
+                    continue;
+                }
+                if (commitRef.equals(s.substring(0, 6))) {
+                    fullRef = s;
+                }
+            }
+        }
+        File commitBlob = join(COMMIT_DIR, fullRef);
+        return readObject(commitBlob, Commit.class);
+    }
+
+    /** commit known, get the tracking file content.
+     *  if no such file, return null.
+     * @param commit
+     * @param fileName
+     * @return
+     */
+    private static byte[] getFileContentFromCommit(Commit commit, String fileName) {
+        HashMap<String, String> map = commit.getRefs();
+        if (!map.containsKey(fileName)) {
+            return null;
+        }
+        String ref = map.get(fileName);
+        File blob = join(BLOB_DIR, ref);
+        return readContents(blob);
+    }
+
+    public static void checkBranch(String branchName) {
+
+    }
+
+    /** whether the file exists in head branch.
+     *
+     * @param fileName
+     * @return
+     */
+    public static boolean commitFileExist(String fileName) {
+        String branch = readContentsAsString(HEAD_FILE);
+        File branchFile = join(BRANCH_DIR, branch);
+        String branchRef = readContentsAsString(branchFile);
+        return commitFileExist(branchRef, fileName);
+    }
+
+    /** whether the file exists in certain branch.
+     *
+     * @param commitRef
+     * @param fileName
+     * @return
+     */
+    public static boolean commitFileExist(String commitRef, String fileName) {
+        Commit branch = getCommitFromRef(commitRef);
+        HashMap<String, String> map = branch.getRefs();
+        return map.containsKey(fileName);
     }
 
 }

@@ -20,8 +20,7 @@ public class Main {
             case "init":
                 validateNumArgs("init", args, 1);
                 if (Repository.exist()) {
-                    System.out.println("A Gitlet version-control system already exists in the current directory.");
-                    System.exit(0);
+                    throw new GitletException("A Gitlet version-control system already exists in the current directory.");
                 }
                 Repository.init();
                 break;
@@ -29,12 +28,45 @@ public class Main {
                 validateNumArgs("add", args, 2);
                 File file = new File(args[1]);
                 if (!file.exists()) {
-                    System.out.println("File does not exist.");
-                    System.exit(0);
+                    throw new GitletException("File does not exist.");
                 }
                 Repository.add(args[1]);
                 break;
             // TODO: FILL THE REST IN
+            case "commit":
+                if (args.length != 2) {
+                    throw new GitletException("Please enter a commit message.");
+                }
+                if (!Repository.changesExist()) {
+                    System.out.println("No changes added to the commit.");
+                    System.exit(0);
+                }
+                Repository.commit(args[1]);
+                break;
+            case "checkout":
+                if (args.length == 2) {
+                    Repository.checkBranch(args[1]);
+                } else if (args.length == 3) {
+                    if (!Repository.commitFileExist(args[2])) {
+                        throw new GitletException("File does not exist in that commit.");
+                    }
+                    Repository.checkCommitFile(args[2]);
+                } else if (args.length == 4) {
+                    if (!Repository.commitExist(args[1])) {
+                        System.out.println("No commit with that id exists.");
+                        System.exit(0);
+                    }
+                    if (!Repository.commitFileExist(args[1], args[3])) {
+                        throw new GitletException("File does not exist in that commit.");
+                    }
+                    Repository.checkCommitFile(args[1], args[3]);
+                } else {
+                    throw new RuntimeException(
+                            String.format("Invalid number of arguments for: checkout."));
+                }
+                break;
+            case "log":
+                
         }
     }
 
