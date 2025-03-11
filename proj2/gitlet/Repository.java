@@ -359,7 +359,7 @@ public class Repository {
         Formatter fmt = new Formatter();
         fmt.format("%ta %tb %te %tT %tY %tz", c.getDate(), c.getDate(),
                 c.getDate(), c.getDate(), c.getDate(), c.getDate());
-        System.out.println("Data: " + fmt);
+        System.out.println("Date: " + fmt);
         System.out.println(c.getMessage());
         System.out.println();
     }
