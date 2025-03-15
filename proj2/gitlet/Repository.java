@@ -2,7 +2,6 @@ package gitlet;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static gitlet.Utils.*;
@@ -70,9 +69,7 @@ public class Repository {
                 throw new RuntimeException(e);
             }
         }
-        String[] sl = {};
-        Utils.writeObject(ADD_LIST, sl);
-        Utils.writeObject(RM_LIST, sl);
+        removeStaging();
         Commit firstCommit = new Commit("initial commit", new Date(0));
         Utils.writeContents(HEAD_FILE, "master");
         makeCommit(firstCommit);
@@ -88,6 +85,12 @@ public class Repository {
         } else {
             return !sl.isEmpty();
         }
+    }
+
+    private static void removeStaging() {
+        String[] sl = {};
+        Utils.writeObject(ADD_LIST, sl);
+        Utils.writeObject(RM_LIST, sl);
     }
 
     /** make commit.
@@ -109,9 +112,7 @@ public class Repository {
             File file = join(ADD_DIR, filename);
             file.delete();
         }
-        String[] sl = {};
-        Utils.writeObject(ADD_LIST, sl);
-        Utils.writeObject(RM_LIST, sl);
+        removeStaging();
     }
 
     /** already build a commit class var.
@@ -198,6 +199,11 @@ public class Repository {
             String oldRef = now.getRefs().get(filename);
             String newRef = getHashOfFile(file);
             if (oldRef.equals(newRef)) {
+                removeItemsFromListFile(ADD_LIST, filename);
+                File copy = join(ADD_DIR, filename);
+                if (copy.exists()) {
+                    copy.delete();
+                }
                 return;
             }
         }
@@ -315,6 +321,39 @@ public class Repository {
     }
 
     public static void checkBranch(String branchName) {
+        // maybe file(BRANCH_FIR, branchName).exist
+        List<String> commitList = plainFilenamesIn(BRANCH_DIR);
+        if (!commitList.contains(branchName)) {
+            System.out.println("No such branch exists.");
+            return;
+        }
+        if (branchName.equals(readContentsAsString(HEAD_FILE))) {
+            System.out.println("No need to checkout the current branch.");
+            return;
+        }
+        File branchFile = join(BRANCH_DIR, branchName);
+        Commit branch = getCommitFromRef(readContentsAsString(branchFile));
+        HashMap<String, String> branchTrackingFiles = branch.getRefs();
+        for (String file : branchTrackingFiles.keySet()) {
+            File overwrite = join(CWD, file);
+            if ((!isTracking(file)) && overwrite.exists()) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.exit(0);
+            }
+        }
+        for (String file : branchTrackingFiles.keySet()) {
+            File overwrite = join(CWD, file);
+            byte[] content = readContents(join(BLOB_DIR, branchTrackingFiles.get(file)));
+            if (!overwrite.exists()) {
+                try {
+                    overwrite.createNewFile();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            writeContents(overwrite, content);
+        }
+        removeStaging();
 
     }
 
@@ -370,6 +409,81 @@ public class Repository {
             commitLog(ref);
             ref = getFatherRef(ref);
         }
+    }
+
+    public static boolean isStaging(String filename) {
+        List<String> addList = Arrays.asList(Utils.readObject(ADD_LIST, String[].class));
+        List<String> rmList = Arrays.asList(Utils.readObject(RM_LIST, String[].class));
+        return addList.contains(filename) || rmList.contains(filename);
+    }
+
+    public static boolean isTracking(String filename) {
+        Commit now = getCommitFromRef(getHeadCommit());
+        return now.getRefs().containsKey(filename);
+    }
+
+    public static void rm(String filename) {
+        Commit now = getCommitFromRef(getHeadCommit());
+        removeItemsFromListFile(ADD_LIST, filename);
+        if (now.getRefs().containsKey(filename)) {
+            addItemsToListFile(RM_LIST, filename);
+        }
+        restrictedDelete(filename);
+    }
+
+    public static void logAll() {
+        List<String> commitList = plainFilenamesIn(COMMIT_DIR);
+        for (String commitRef : commitList) {
+            commitLog(commitRef);
+        }
+    }
+
+    public static void findMsg(String msg) {
+        List<String> commitList = plainFilenamesIn(COMMIT_DIR);
+        int count = 0;
+        for (String commitRef : commitList) {
+            Commit commit = getCommitFromRef(commitRef);
+            if (msg.equals(commit.getMessage())) {
+                System.out.println(commitRef);
+                count = count + 1;
+            }
+        }
+        if (count == 0) {
+            throw new GitletException("Found no commit with that message.");
+        }
+    }
+
+    public static void showStatus() {
+        System.out.println("=== Branches ===");
+        String head = readContentsAsString(HEAD_FILE);
+        System.out.println("*"+head);
+        List<String> branches = plainFilenamesIn(BRANCH_DIR);
+        if (branches != null) {
+            for (String branch : branches) {
+                System.out.println(branch);
+            }
+        }
+        System.out.println();
+
+        System.out.println("=== Staged Files ===");
+        List<String> addList = Arrays.asList(Utils.readObject(ADD_LIST, String[].class));
+        for (String add : addList) {
+            System.out.println(add);
+        }
+        System.out.println();
+
+        System.out.println("=== Removed Files ===");
+        List<String> rmList = Arrays.asList(Utils.readObject(RM_LIST, String[].class));
+        for (String rm : rmList) {
+            System.out.println(rm);
+        }
+        System.out.println();
+
+        System.out.println("=== Modifications Not Staged For Commit ===");
+        System.out.println();
+
+        System.out.println("=== Untracked Files ===");
+        System.out.println();
     }
 
 }

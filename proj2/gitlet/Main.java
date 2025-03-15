@@ -68,6 +68,21 @@ public class Main {
             case "log":
                 Repository.log();
                 break;
+            case "rm":
+                if (!(Repository.isTracking(args[1]) && Repository.isStaging(args[1]))) {
+                    throw new GitletException("No reason to remove the file.");
+                }
+                Repository.rm(args[1]);
+                break;
+            case "global-log":
+                Repository.logAll();
+                break;
+            case "find":
+                Repository.findMsg(args[1]);
+                break;
+            case "status":
+                Repository.showStatus();
+                break;
 
         }
     }
