@@ -48,27 +48,9 @@ public class Repository {
         ADD_DIR.mkdir();
         COMMIT_DIR.mkdir();
         BLOB_DIR.mkdir();
-        if (!HEAD_FILE.exists()) {
-            try {
-                HEAD_FILE.createNewFile();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        if (!ADD_LIST.exists()) {
-            try {
-                ADD_LIST.createNewFile();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        if (!RM_LIST.exists()) {
-            try {
-                RM_LIST.createNewFile();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        createFile(HEAD_FILE);
+        createFile(ADD_LIST);
+        createFile(RM_LIST);
         removeStaging();
         Commit firstCommit = new Commit("initial commit", new Date(0));
         Utils.writeContents(HEAD_FILE, "master");
@@ -100,7 +82,7 @@ public class Repository {
      */
     public static void commit(String msg) {
         // get father commit
-        String fatherRef = getHeadCommit();
+        String fatherRef = getHeadCommitRef();
         Commit father = getCommitFromRef(fatherRef);
         // create new commit
         Commit child = new Commit(msg, new Date());
@@ -125,13 +107,7 @@ public class Repository {
         String ref = commit.saveCommit();
         String branch = Utils.readContentsAsString(HEAD_FILE);
         File branchFile = Utils.join(BRANCH_DIR, branch);
-        if (!branchFile.exists()) {
-            try {
-                branchFile.createNewFile();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        createFile(branchFile);
         Utils.writeContents(branchFile, ref);
     }
 
@@ -162,11 +138,6 @@ public class Repository {
             Utils.writeObject(listFile, tmp.toArray(new String[0]));
         }
     }
-
-//    private static String getHashOfFile(File dir, String filename) {
-//        File file = join(dir, filename);
-//        return getHashOfFile(file);
-//    }
 
     /** get hash value of the file.
      *
@@ -208,13 +179,7 @@ public class Repository {
             }
         }
         File copy = join(ADD_DIR, filename);
-        if (!copy.exists()) {
-            try {
-                copy.createNewFile();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        createFile(copy);
         byte[] content = readContents(file);
         Utils.writeContents(copy, content);
         addItemsToListFile(ADD_LIST, filename);
@@ -250,14 +215,25 @@ public class Repository {
         Commit branch = getCommitFromRef(commitRef);
         byte[] blob = getFileContentFromCommit(branch, fileName);
         File file = join(CWD, fileName);
-        if (!file.exists()) {
-            try {
-                file.createNewFile();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+        createFile(file);
+        writeContents(file, blob);
+    }
+
+    private static String shortRefToLongRef(String shortRef) {
+        List<String> fileList = plainFilenamesIn(COMMIT_DIR);
+        String longRef = shortRef;
+        if (shortRef.length() == 6) {
+            for (String s : fileList) {
+                if (s.equals("tmp")) {
+                    continue;
+                }
+                if (shortRef.equals(s.substring(0, 6))) {
+                    longRef = s;
+                    break;
+                }
             }
         }
-        writeContents(file, blob);
+        return longRef;
     }
 
     /** whether a commit exist.
@@ -266,18 +242,7 @@ public class Repository {
      * @return
      */
     public static boolean commitExist(String ref) {
-        String fullRef = ref;
-        if (ref.length() == 6) {
-            List<String> fileList = plainFilenamesIn(COMMIT_DIR);
-            for (String s : fileList) {
-                if (s.equals("tmp")) {
-                    continue;
-                }
-                if (ref.equals(s.substring(0, 6))) {
-                    fullRef = s;
-                }
-            }
-        }
+        String fullRef = shortRefToLongRef(ref);
         List<String> commitList = plainFilenamesIn(COMMIT_DIR);
         return commitList.contains(fullRef);
     }
@@ -288,18 +253,7 @@ public class Repository {
      * @return commit
      */
     private static Commit getCommitFromRef(String commitRef) {
-        String fullRef = commitRef;
-        if (commitRef.length() == 6) {
-            List<String> fileList = plainFilenamesIn(COMMIT_DIR);
-            for (String s : fileList) {
-                if (s.equals("tmp")) {
-                    continue;
-                }
-                if (commitRef.equals(s.substring(0, 6))) {
-                    fullRef = s;
-                }
-            }
-        }
+        String fullRef = shortRefToLongRef(commitRef);
         File commitBlob = join(COMMIT_DIR, fullRef);
         return readObject(commitBlob, Commit.class);
     }
@@ -320,10 +274,15 @@ public class Repository {
         return readContents(blob);
     }
 
+    public static boolean branchExists(String branchName) {
+//        List<String> commitList = plainFilenamesIn(BRANCH_DIR);
+//        return commitList.contains(branchName);
+        File branch = join(BRANCH_DIR, branchName);
+        return branch.exists();
+    }
+
     public static void checkBranch(String branchName) {
-        // maybe file(BRANCH_FIR, branchName).exist
-        List<String> commitList = plainFilenamesIn(BRANCH_DIR);
-        if (!commitList.contains(branchName)) {
+        if (!branchExists(branchName)) {
             System.out.println("No such branch exists.");
             return;
         }
@@ -332,29 +291,8 @@ public class Repository {
             return;
         }
         File branchFile = join(BRANCH_DIR, branchName);
-        Commit branch = getCommitFromRef(readContentsAsString(branchFile));
-        HashMap<String, String> branchTrackingFiles = branch.getRefs();
-        for (String file : branchTrackingFiles.keySet()) {
-            File overwrite = join(CWD, file);
-            if ((!isTracking(file)) && overwrite.exists()) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
-                System.exit(0);
-            }
-        }
-        for (String file : branchTrackingFiles.keySet()) {
-            File overwrite = join(CWD, file);
-            byte[] content = readContents(join(BLOB_DIR, branchTrackingFiles.get(file)));
-            if (!overwrite.exists()) {
-                try {
-                    overwrite.createNewFile();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            writeContents(overwrite, content);
-        }
-        removeStaging();
-
+        checkCommit(readContentsAsString(branchFile));
+        writeContents(HEAD_FILE, branchName);
     }
 
     /** whether the file exists in head branch.
@@ -381,7 +319,7 @@ public class Repository {
         return map.containsKey(fileName);
     }
 
-    private static String getHeadCommit() {
+    private static String getHeadCommitRef() {
         String branch = Utils.readContentsAsString(HEAD_FILE);
         return Utils.readContentsAsString(join(BRANCH_DIR, branch));
     }
@@ -404,7 +342,7 @@ public class Repository {
     }
 
     public static void log() {
-        String ref = getHeadCommit();
+        String ref = getHeadCommitRef();
         while (ref != null) {
             commitLog(ref);
             ref = getFatherRef(ref);
@@ -418,12 +356,16 @@ public class Repository {
     }
 
     public static boolean isTracking(String filename) {
-        Commit now = getCommitFromRef(getHeadCommit());
-        return now.getRefs().containsKey(filename);
+        Commit now = getCommitFromRef(getHeadCommitRef());
+        return isTracking(filename, now);
+    }
+
+    public static boolean isTracking(String filename, Commit commit) {
+        return commit.getRefs().containsKey(filename);
     }
 
     public static void rm(String filename) {
-        Commit now = getCommitFromRef(getHeadCommit());
+        Commit now = getCommitFromRef(getHeadCommitRef());
         removeItemsFromListFile(ADD_LIST, filename);
         if (now.getRefs().containsKey(filename)) {
             addItemsToListFile(RM_LIST, filename);
@@ -434,6 +376,9 @@ public class Repository {
     public static void logAll() {
         List<String> commitList = plainFilenamesIn(COMMIT_DIR);
         for (String commitRef : commitList) {
+            if (commitRef.equals("tmp")) {
+                continue;
+            }
             commitLog(commitRef);
         }
     }
@@ -484,6 +429,69 @@ public class Repository {
 
         System.out.println("=== Untracked Files ===");
         System.out.println();
+    }
+
+    public static void createBranch(String branchName) {
+        String headRef = getHeadCommitRef();
+        File newBranch = join(BRANCH_DIR, branchName);
+        createFile(newBranch);
+        writeContents(newBranch, headRef);
+    }
+
+    private static void createFile(File file) {
+        if (!file.exists()) {
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public static void removeBranch(String branchName) {
+        if (branchName.equals(readContentsAsString(HEAD_FILE))) {
+            throw new GitletException("Cannot remove the current branch.");
+        }
+        File branch = join(BRANCH_DIR, branchName);
+        branch.delete();
+    }
+
+    private static void checkCommit(String commitRef) {
+        Commit branch = getCommitFromRef(commitRef);
+        HashMap<String, String> branchTrackingFiles = branch.getRefs();
+        // untracked in head && will be overwritten
+        // (aka. is tracked in given branch, and is in CWD now)
+        for (String file : branchTrackingFiles.keySet()) {
+            File overwrite = join(CWD, file);
+            if ((!isTracking(file)) && overwrite.exists()) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.exit(0);
+            }
+        }
+        Commit head = getCommitFromRef(getHeadCommitRef());
+        for (String file : head.getRefs().keySet()) {
+            if (!isTracking(file, branch)) {
+                restrictedDelete(file);
+            }
+        }
+        for (String file : branchTrackingFiles.keySet()) {
+            File overwrite = join(CWD, file);
+            byte[] content = readContents(join(BLOB_DIR, branchTrackingFiles.get(file)));
+            createFile(overwrite);
+            writeContents(overwrite, content);
+        }
+        removeStaging();
+    }
+
+    public static void reset(String ref) {
+        String fullRef = shortRefToLongRef(ref);
+        if (!commitExist(fullRef)) {
+            System.out.println("No commit with that id exists.");
+        }
+        checkCommit(fullRef);
+        String branch = readContentsAsString(HEAD_FILE);
+        File branchFile = join(BRANCH_DIR, branch);
+        writeContents(branchFile, fullRef);
     }
 
 }

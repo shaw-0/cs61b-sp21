@@ -69,7 +69,7 @@ public class Main {
                 Repository.log();
                 break;
             case "rm":
-                if (!(Repository.isTracking(args[1]) && Repository.isStaging(args[1]))) {
+                if (!(Repository.isTracking(args[1]) || Repository.isStaging(args[1]))) {
                     throw new GitletException("No reason to remove the file.");
                 }
                 Repository.rm(args[1]);
@@ -82,6 +82,21 @@ public class Main {
                 break;
             case "status":
                 Repository.showStatus();
+                break;
+            case "branch":
+                if (Repository.branchExists(args[1])) {
+                    throw new GitletException("A branch with that name already exists.");
+                }
+                Repository.createBranch(args[1]);
+                break;
+            case "rm-branch":
+                if (!Repository.branchExists(args[1])) {
+                    throw new GitletException("A branch with that name does not exist.");
+                }
+                Repository.removeBranch(args[1]);
+                break;
+            case "reset":
+                Repository.reset(args[1]);
                 break;
 
         }

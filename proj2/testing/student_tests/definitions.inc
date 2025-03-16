@@ -1,5 +1,6 @@
 # Standard definitions
-D DATE "Date: \w\w\w \w\w\w \d+ \d\d:\d\d:\d\d \d\d\d\d [-+]\d\d\d\d"
+# D DATE "Date: \w\w\w \w\w\w \d+ \d\d:\d\d:\d\d \d\d\d\d [-+]\d\d\d\d"
+D DATE "[^\n]*(?=\n|\Z)"
 # A status log header RE.  Captures the commit id in its sole group.
 D COMMIT_HEAD "commit ([a-f0-9]+)[ \t]*\n(?:Merge:\s+[0-9a-f]{7}\s+[0-9a-f]{7}[ ]*\n)?${DATE}"
 # A full log entry.  Captures the entry. Assume logs messages don't contain
@@ -59,8 +60,10 @@ ${COMMIT_HEAD}
 initial commit
 
 <<<*
-
-> checkout ${3} -- heeho.txt
+D UID ${3}
+> checkout ${UID} -- heeho.txt
+<<<
+> add heeho.txt
 <<<
 > commit "HEEHOHO! heeho IS BACK HEEHO!"
 <<<
