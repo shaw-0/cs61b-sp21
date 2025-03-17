@@ -6,17 +6,13 @@ import java.util.*;
 
 import static gitlet.Utils.*;
 
-// TODO: any imports you need here
-
 /** Represents a gitlet repository.
- *  TODO: It's a good idea to give a description here of what else this Class
  *  does at a high level.
  *
- *  @author TODO
+ *  @author
  */
 public class Repository {
     /**
-     * TODO: add instance variables here.
      *
      * List all instance variables of the Repository class here with a useful
      * comment above them describing what that variable represents and how that
@@ -36,7 +32,6 @@ public class Repository {
     public static final File BLOB_DIR = join(GITLET_DIR, "blob");
     public static final File HEAD_FILE = join(GITLET_DIR, "head");
 
-    /* TODO: fill in the rest of this class. */
     /** init
      * set up persistence, create directories
      * start with an initial commit
@@ -232,12 +227,13 @@ public class Repository {
     private static String shortRefToLongRef(String shortRef) {
         List<String> fileList = plainFilenamesIn(COMMIT_DIR);
         String longRef = shortRef;
-        if (shortRef.length() == 6) {
+        if (shortRef.length() < 40) {
+            int len = shortRef.length();
             for (String s : fileList) {
                 if (s.equals("tmp")) {
                     continue;
                 }
-                if (shortRef.equals(s.substring(0, 6))) {
+                if (shortRef.equals(s.substring(0, len))) {
                     longRef = s;
                     break;
                 }
@@ -344,7 +340,8 @@ public class Repository {
         System.out.println("===");
         System.out.println("commit " + ref);
         if (c.getMergeFather() != null) {
-            System.out.println("Merge: " + c.getFather().substring(0, 6) + " " + c.getMergeFather().substring(0, 6));
+            System.out.println("Merge: " + c.getFather().substring(0, 7)
+                    + " " + c.getMergeFather().substring(0, 7));
         }
         Formatter fmt = new Formatter();
         fmt.format("%ta %tb %te %tT %tY %tz", c.getDate(), c.getDate(),
@@ -382,8 +379,8 @@ public class Repository {
         removeItemsFromListFile(ADD_LIST, filename);
         if (now.getRefs().containsKey(filename)) {
             addItemsToListFile(RM_LIST, filename);
+            restrictedDelete(filename);
         }
-        restrictedDelete(filename);
     }
 
     public static void logAll() {
@@ -424,14 +421,15 @@ public class Repository {
             }
         }
         if (count == 0) {
-            throw new GitletException("Found no commit with that message.");
+            System.out.println("Found no commit with that message.");
+            System.exit(0);
         }
     }
 
     public static void showStatus() {
         System.out.println("=== Branches ===");
         String head = readContentsAsString(HEAD_FILE);
-        System.out.println("*"+head);
+        System.out.println("*" + head);
         List<String> branches = plainFilenamesIn(BRANCH_DIR);
         if (branches != null) {
             for (String branch : branches) {
@@ -483,7 +481,8 @@ public class Repository {
 
     public static void removeBranch(String branchName) {
         if (branchName.equals(readContentsAsString(HEAD_FILE))) {
-            throw new GitletException("Cannot remove the current branch.");
+            System.out.println("Cannot remove the current branch.");
+            System.exit(0);
         }
         File branch = join(BRANCH_DIR, branchName);
         branch.delete();
@@ -494,7 +493,8 @@ public class Repository {
         for (String file : branchTrackingFiles.keySet()) {
             File overwrite = join(CWD, file);
             if ((!isTracking(file)) && overwrite.exists()) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.out.println("There is an untracked file in the way; " +
+                        "delete it, or add and commit it first.");
                 System.exit(0);
             }
         }
@@ -585,15 +585,6 @@ public class Repository {
         return 1;
     }
 
-    private static void handleConflictFile(File headFile, File branchFile, String filename) {
-        System.out.println("Encountered a merge conflict.");
-        String headContent = readContentsAsString(headFile);
-        String branchContent = readContentsAsString(branchFile);
-        File cwdFile = join(CWD, filename);
-        writeContents(cwdFile, "<<<<<<< HEAD\n" + headContent
-                + "=======\n" + branchContent + ">>>>>>>");
-    }
-
     private static boolean handleConflict(String filename, String branchRef) {
         String headRef = getHeadCommitRef();
         Commit head = getCommitFromRef(headRef);
@@ -618,15 +609,16 @@ public class Repository {
             branchContent = readContentsAsString(branchFile);
         }
         File cwdFile = join(CWD, filename);
-        writeContents(cwdFile, "<<<<<<< HEAD\n" + headContent
-                + "=======\n" + branchContent + ">>>>>>>");
+        writeContents(cwdFile, "<<<<<<< HEAD\r\n" + headContent
+                + "=======\r\n" + branchContent + ">>>>>>>");
         return true;
     }
 
     public static void merge(String branchName) {
         String headName = readContentsAsString(HEAD_FILE);
         if (headName.equals(branchName)) {
-            throw new GitletException("Cannot merge a branch with itself.");
+            System.out.println("Cannot merge a branch with itself.");
+            System.exit(0);
         }
         String branchRef = readContentsAsString(join(BRANCH_DIR, branchName));
         Commit branch = getCommitFromRef(branchRef);
@@ -667,7 +659,7 @@ public class Repository {
         HashMap<String, String> headMap = getCommitFromRef(headRef).getRefs();
         for (String filename : branchMap.keySet()) {
             if (!spiltMap.containsKey(filename)) {
-                if (!headMap.containsKey(filename)){
+                if (!headMap.containsKey(filename)) {
                     checkCommitFile(branchRef, filename);
                     pureAdd(filename);
                 } else {

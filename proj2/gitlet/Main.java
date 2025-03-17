@@ -3,7 +3,7 @@ package gitlet;
 import java.io.File;
 
 /** Driver class for Gitlet, a subset of the Git version-control system.
- *  @author TODO
+ *  @author
  */
 public class Main {
 
@@ -18,37 +18,47 @@ public class Main {
         String firstArg = args[0];
         switch(firstArg) {
             case "init":
-                validateNumArgs("init", args, 1);
+                validateNumArgs(args, 1);
                 if (Repository.exist()) {
-                    throw new GitletException("A Gitlet version-control system already exists in the current directory.");
+                    System.out.println("A Gitlet version-control system already exists in the current directory.");
+                    System.exit(0);
                 }
                 Repository.init();
                 break;
             case "add":
-                validateNumArgs("add", args, 2);
+                repositoryCheck();
+                validateNumArgs(args, 2);
                 File file = new File(args[1]);
                 if (!file.exists()) {
-                    throw new GitletException("File does not exist.");
+                    System.out.println("File does not exist.");
+                    System.exit(0);
                 }
                 Repository.add(args[1]);
                 break;
-            // TODO: FILL THE REST IN
             case "commit":
-                if (args.length != 2) {
-                    throw new GitletException("Please enter a commit message.");
+                if (args.length == 1) {
+                    System.out.println("Please enter a commit message.");
+                    System.exit(0);
                 }
+                validateNumArgs(args, 2);
                 if (!Repository.changesExist()) {
                     System.out.println("No changes added to the commit.");
+                    System.exit(0);
+                }
+                if (args[1].equals("")) {
+                    System.out.println("Please enter a commit message.");
                     System.exit(0);
                 }
                 Repository.commit(args[1]);
                 break;
             case "checkout":
+                repositoryCheck();
                 if (args.length == 2) {
                     Repository.checkBranch(args[1]);
                 } else if (args.length == 3) {
                     if (!Repository.commitFileExist(args[2])) {
-                        throw new GitletException("File does not exist in that commit.");
+                        System.out.println("File does not exist in that commit.");
+                        System.exit(0);
                     }
                     Repository.checkCommitFile(args[2]);
                 } else if (args.length == 4) {
@@ -57,56 +67,83 @@ public class Main {
                         System.exit(0);
                     }
                     if (!Repository.commitFileExist(args[1], args[3])) {
-                        throw new GitletException("File does not exist in that commit.");
+                        System.out.println("File does not exist in that commit.");
+                        System.exit(0);
                     }
                     Repository.checkCommitFile(args[1], args[3]);
                 } else {
-                    throw new RuntimeException(
-                            String.format("Invalid number of arguments for: checkout."));
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);
                 }
                 break;
             case "log":
+                repositoryCheck();
+                validateNumArgs(args, 1);
                 Repository.log();
                 break;
             case "rm":
+                repositoryCheck();
+                validateNumArgs(args, 2);
                 if (!(Repository.isTracking(args[1]) || Repository.isStaging(args[1]))) {
-                    throw new GitletException("No reason to remove the file.");
+                    System.out.println("No reason to remove the file.");
+                    System.exit(0);
                 }
                 Repository.rm(args[1]);
                 break;
             case "global-log":
+                repositoryCheck();
+                validateNumArgs(args, 1);
                 Repository.logAll();
                 break;
             case "find":
+                repositoryCheck();
+                validateNumArgs(args, 1);
                 Repository.findMsg(args[1]);
                 break;
             case "status":
+                repositoryCheck();
+                validateNumArgs(args, 1);
                 Repository.showStatus();
                 break;
             case "branch":
+                repositoryCheck();
+                validateNumArgs(args, 2);
                 if (Repository.branchExists(args[1])) {
-                    throw new GitletException("A branch with that name already exists.");
+                    System.out.println("A branch with that name already exists.");
+                    System.exit(0);
                 }
                 Repository.createBranch(args[1]);
                 break;
             case "rm-branch":
+                repositoryCheck();
+                validateNumArgs(args, 2);
                 if (!Repository.branchExists(args[1])) {
-                    throw new GitletException("A branch with that name does not exist.");
+                    System.out.println("A branch with that name does not exist.");
+                    System.exit(0);
                 }
                 Repository.removeBranch(args[1]);
                 break;
             case "reset":
+                repositoryCheck();
+                validateNumArgs(args, 2);
                 Repository.reset(args[1]);
                 break;
             case "merge":
+                repositoryCheck();
+                validateNumArgs(args, 2);
                 if (Repository.changesExist()) {
-                    throw new GitletException("You have uncommitted changes.");
+                    System.out.println("You have uncommitted changes.");
+                    System.exit(0);
                 }
                 if (!Repository.branchExists(args[1])) {
-                    throw new GitletException("A branch with that name does not exist.");
+                    System.out.println("A branch with that name does not exist.");
+                    System.exit(0);
                 }
                 Repository.merge(args[1]);
                 break;
+            default:
+                System.out.println("No command with that name exists.");
+                System.exit(0);
         }
     }
 
@@ -114,14 +151,20 @@ public class Main {
      * Checks the number of arguments versus the expected number,
      * throws a RuntimeException if they do not match.
      *
-     * @param cmd Name of command you are validating
      * @param args Argument array from command line
      * @param n Number of expected arguments
      */
-    public static void validateNumArgs(String cmd, String[] args, int n) {
+    public static void validateNumArgs(String[] args, int n) {
         if (args.length != n) {
-            throw new RuntimeException(
-                    String.format("Invalid number of arguments for: %s.", cmd));
+            System.out.println("Incorrect operands.");
+            System.exit(0);
+        }
+    }
+
+    public static void repositoryCheck() {
+        if (!Repository.exist()) {
+            System.out.println("Not in an initialized Gitlet directory.");
+            System.out.println();
         }
     }
 }
