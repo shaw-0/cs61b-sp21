@@ -60,7 +60,7 @@ ${COMMIT_HEAD}
 initial commit
 
 <<<*
-D UID ${3}
+D UID "${3}"
 > checkout ${UID} -- heeho.txt
 <<<
 > add heeho.txt

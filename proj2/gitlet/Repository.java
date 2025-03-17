@@ -52,7 +52,7 @@ public class Repository {
         createFile(ADD_LIST);
         createFile(RM_LIST);
         removeStaging();
-        Commit firstCommit = new Commit("initial commit", new Date(0));
+        Commit firstCommit = new Commit("initial commit", new Date(0), 0);
         Utils.writeContents(HEAD_FILE, "master");
         makeCommit(firstCommit);
     }
@@ -81,11 +81,16 @@ public class Repository {
      * @param msg user message of this commit
      */
     public static void commit(String msg) {
+        commit(msg, null);
+    }
+
+    public static void commit(String msg, String mergeFather) {
         // get father commit
         String fatherRef = getHeadCommitRef();
         Commit father = getCommitFromRef(fatherRef);
         // create new commit
-        Commit child = new Commit(msg, new Date());
+        Commit child = new Commit(msg, new Date(), father.getDepth() + 1);
+        child.setMergeFather(mergeFather);
         child.trackFiles(father.getRefs());
         child.setFather(fatherRef);
         // make commit
@@ -178,6 +183,11 @@ public class Repository {
                 return;
             }
         }
+        pureAdd(filename);
+    }
+
+    private static void pureAdd(String filename) {
+        File file = join(CWD, filename);
         File copy = join(ADD_DIR, filename);
         createFile(copy);
         byte[] content = readContents(file);
@@ -333,6 +343,9 @@ public class Repository {
         Commit c = getCommitFromRef(ref);
         System.out.println("===");
         System.out.println("commit " + ref);
+        if (c.getMergeFather() != null) {
+            System.out.println("Merge: " + c.getFather().substring(0, 6) + " " + c.getMergeFather().substring(0, 6));
+        }
         Formatter fmt = new Formatter();
         fmt.format("%ta %tb %te %tT %tY %tz", c.getDate(), c.getDate(),
                 c.getDate(), c.getDate(), c.getDate(), c.getDate());
@@ -383,10 +396,27 @@ public class Repository {
         }
     }
 
+    private static String find(String msg) {
+        List<String> commitList = plainFilenamesIn(COMMIT_DIR);
+        for (String commitRef : commitList) {
+            if (commitRef.equals("tmp")) {
+                continue;
+            }
+            Commit commit = getCommitFromRef(commitRef);
+            if (msg.equals(commit.getMessage())) {
+                return commitRef;
+            }
+        }
+        return null;
+    }
+
     public static void findMsg(String msg) {
         List<String> commitList = plainFilenamesIn(COMMIT_DIR);
         int count = 0;
         for (String commitRef : commitList) {
+            if (commitRef.equals("tmp")) {
+                continue;
+            }
             Commit commit = getCommitFromRef(commitRef);
             if (msg.equals(commit.getMessage())) {
                 System.out.println(commitRef);
@@ -405,6 +435,9 @@ public class Repository {
         List<String> branches = plainFilenamesIn(BRANCH_DIR);
         if (branches != null) {
             for (String branch : branches) {
+                if (branch.equals(head)) {
+                    continue;
+                }
                 System.out.println(branch);
             }
         }
@@ -456,11 +489,8 @@ public class Repository {
         branch.delete();
     }
 
-    private static void checkCommit(String commitRef) {
-        Commit branch = getCommitFromRef(commitRef);
-        HashMap<String, String> branchTrackingFiles = branch.getRefs();
-        // untracked in head && will be overwritten
-        // (aka. is tracked in given branch, and is in CWD now)
+    private static void untrackedFileCheck(Commit commit) {
+        HashMap<String, String> branchTrackingFiles = commit.getRefs();
         for (String file : branchTrackingFiles.keySet()) {
             File overwrite = join(CWD, file);
             if ((!isTracking(file)) && overwrite.exists()) {
@@ -468,12 +498,18 @@ public class Repository {
                 System.exit(0);
             }
         }
+    }
+
+    private static void checkCommit(String commitRef) {
+        Commit branch = getCommitFromRef(commitRef);
+        untrackedFileCheck(branch);
         Commit head = getCommitFromRef(getHeadCommitRef());
         for (String file : head.getRefs().keySet()) {
             if (!isTracking(file, branch)) {
                 restrictedDelete(file);
             }
         }
+        HashMap<String, String> branchTrackingFiles = branch.getRefs();
         for (String file : branchTrackingFiles.keySet()) {
             File overwrite = join(CWD, file);
             byte[] content = readContents(join(BLOB_DIR, branchTrackingFiles.get(file)));
@@ -492,6 +528,158 @@ public class Repository {
         String branch = readContentsAsString(HEAD_FILE);
         File branchFile = join(BRANCH_DIR, branch);
         writeContents(branchFile, fullRef);
+    }
+
+    private static String findSpiltPoint(String masterRef, String branchRef) {
+        Commit deeper = getCommitFromRef(branchRef);
+        Commit lessDeeper = getCommitFromRef(masterRef);
+        String deeperRef = branchRef;
+        String lessDeeperRef = masterRef;
+        if (deeper.getDepth() < lessDeeper.getDepth()) {
+            Commit tmp = deeper;
+            deeper = lessDeeper;
+            lessDeeper = tmp;
+            deeperRef = masterRef;
+            lessDeeperRef = branchRef;
+        }
+        int deeperDepth = deeper.getDepth();
+        int lessDepth = lessDeeper.getDepth();
+        for (int i = deeperDepth; i > lessDepth; i--) {
+            deeperRef = deeper.getFather();
+            deeper = getCommitFromRef(deeperRef);
+        }
+        for (int i = lessDepth; i > 0; i--) {
+            if (deeperRef.equals(lessDeeperRef)) {
+                return deeperRef;
+            }
+            deeperRef = deeper.getFather();
+            deeper = getCommitFromRef(deeperRef);
+            lessDeeperRef = lessDeeper.getFather();
+            lessDeeper = getCommitFromRef(lessDeeperRef);
+        }
+        return find("initial commit");
+    }
+
+    /** how file changed.
+     *  0: same with head/other branch
+     *  1: changed
+     *  -1: removed
+     * @param filename
+     * @param fileRef
+     * @return
+     */
+    private static int howFileChanged(String filename, String fileRef) {
+        return howFileChanged(filename, fileRef, getHeadCommitRef());
+    }
+
+    private static int howFileChanged(String filename, String fileRef, String commitRef) {
+        Commit branch = getCommitFromRef(commitRef);
+        HashMap<String, String> branchMap = branch.getRefs();
+        if (!branchMap.containsKey(filename)) {
+            return -1;
+        }
+        String newFileRef = branchMap.get(filename);
+        if (fileRef.equals(newFileRef)) {
+            return 0;
+        }
+        return 1;
+    }
+
+    private static void handleConflictFile(File headFile, File branchFile, String filename) {
+        System.out.println("Encountered a merge conflict.");
+        String headContent = readContentsAsString(headFile);
+        String branchContent = readContentsAsString(branchFile);
+        File cwdFile = join(CWD, filename);
+        writeContents(cwdFile, "<<<<<<< HEAD\n" + headContent
+                + "=======\n" + branchContent + ">>>>>>>");
+    }
+
+    private static boolean handleConflict(String filename, String branchRef) {
+        String headRef = getHeadCommitRef();
+        Commit head = getCommitFromRef(headRef);
+        Commit branch = getCommitFromRef(branchRef);
+
+        String headFileRef = head.getRefs().get(filename);
+        String branchFileRef = branch.getRefs().get(filename);
+
+        if (headFileRef.equals(branchFileRef)) {
+            return false;
+        }
+
+        String headContent = "";
+        String branchContent = "";
+
+        if (headFileRef != null) {
+            File headFile = join(BLOB_DIR, headFileRef);
+            headContent = readContentsAsString(headFile);
+        }
+        if (branchFileRef != null) {
+            File branchFile = join(BLOB_DIR, branchFileRef);
+            branchContent = readContentsAsString(branchFile);
+        }
+        File cwdFile = join(CWD, filename);
+        writeContents(cwdFile, "<<<<<<< HEAD\n" + headContent
+                + "=======\n" + branchContent + ">>>>>>>");
+        return true;
+    }
+
+    public static void merge(String branchName) {
+        String headName = readContentsAsString(HEAD_FILE);
+        if (headName.equals(branchName)) {
+            throw new GitletException("Cannot merge a branch with itself.");
+        }
+        String branchRef = readContentsAsString(join(BRANCH_DIR, branchName));
+        Commit branch = getCommitFromRef(branchRef);
+        untrackedFileCheck(branch);
+
+        String headRef = getHeadCommitRef();
+        String spiltPointRef = findSpiltPoint(headRef, branchRef);
+        if (spiltPointRef.equals(branchRef)) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            return;
+        }
+        if (spiltPointRef.equals(headRef)) {
+            checkCommit(branchRef);
+            writeContents(HEAD_FILE, branchName);
+            System.out.println("Current branch fast-forwarded.");
+            return;
+        }
+
+        Commit spiltPoint = getCommitFromRef(spiltPointRef);
+        HashMap<String, String> spiltMap = spiltPoint.getRefs();
+        boolean hasConflict = false;
+        for (String filename : spiltMap.keySet()) {
+            String fileRef = spiltMap.get(filename);
+            int changeInHead = Repository.howFileChanged(filename, fileRef);
+            int changeInBranch = howFileChanged(filename, fileRef, branchRef);
+            if (changeInBranch == 1 && changeInHead == 0) {
+                checkCommitFile(branchRef, filename);
+                pureAdd(filename);
+            } else if (changeInBranch == -1 && changeInHead == -1) {
+                continue;
+            } else if (changeInBranch == -1 && changeInHead == 0) {
+                rm(filename);
+            } else if (changeInBranch != 0 && changeInHead != 0) {
+                hasConflict = handleConflict(filename, branchRef);
+            }
+        }
+        HashMap<String, String> branchMap = branch.getRefs();
+        HashMap<String, String> headMap = getCommitFromRef(headRef).getRefs();
+        for (String filename : branchMap.keySet()) {
+            if (!spiltMap.containsKey(filename)) {
+                if (!headMap.containsKey(filename)){
+                    checkCommitFile(branchRef, filename);
+                    pureAdd(filename);
+                } else {
+                    boolean tmp = handleConflict(filename, branchRef);
+                    hasConflict = hasConflict || tmp;
+                }
+            }
+        }
+        if (hasConflict) {
+            System.out.println("Encountered a merge conflict.");
+        }
+        commit("Merged " + branchName + " into " + headName + ".", branchRef);
     }
 
 }

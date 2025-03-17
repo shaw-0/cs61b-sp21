@@ -98,7 +98,15 @@ public class Main {
             case "reset":
                 Repository.reset(args[1]);
                 break;
-
+            case "merge":
+                if (Repository.changesExist()) {
+                    throw new GitletException("You have uncommitted changes.");
+                }
+                if (!Repository.branchExists(args[1])) {
+                    throw new GitletException("A branch with that name does not exist.");
+                }
+                Repository.merge(args[1]);
+                break;
         }
     }
 

@@ -30,6 +30,8 @@ public class Commit implements Serializable {
     private Date date;
     private HashMap<String, String> refs;
     private String father;
+    private String mergeFather;
+    private int depth;
     public static final File CWD = new File(System.getProperty("user.dir"));
     public static final File COMMIT_DIR = join(CWD, ".gitlet", "commit");
     public static final File ADD_LIST = join(CWD, ".gitlet", "staging", "add_list");
@@ -42,11 +44,13 @@ public class Commit implements Serializable {
     /** make first commit
      *
      */
-    public Commit(String msg, Date now) {
+    public Commit(String msg, Date now, int d) {
         message = msg;
         date = now;
         refs = new HashMap<>();
         father = null;
+        mergeFather = null;
+        depth = d;
     }
 
     /** according to father-commit's tracking list(represented as String set)
@@ -114,7 +118,19 @@ public class Commit implements Serializable {
         return refs;
     }
 
+    public String getMergeFather() {
+        return mergeFather;
+    }
+
+    public int getDepth() {
+        return depth;
+    }
+
     public void setFather(String father) {
         this.father = father;
+    }
+
+    public void setMergeFather(String mergeFather) {
+        this.mergeFather = mergeFather;
     }
 }
