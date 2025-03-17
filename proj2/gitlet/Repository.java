@@ -493,8 +493,8 @@ public class Repository {
         for (String file : branchTrackingFiles.keySet()) {
             File overwrite = join(CWD, file);
             if ((!isTracking(file)) && overwrite.exists()) {
-                System.out.println("There is an untracked file in the way; " +
-                        "delete it, or add and commit it first.");
+                System.out.println("There is an untracked file in the way; "
+                        + "delete it, or add and commit it first.");
                 System.exit(0);
             }
         }
@@ -523,6 +523,7 @@ public class Repository {
         String fullRef = shortRefToLongRef(ref);
         if (!commitExist(fullRef)) {
             System.out.println("No commit with that id exists.");
+            System.exit(0);
         }
         checkCommit(fullRef);
         String branch = readContentsAsString(HEAD_FILE);
@@ -610,7 +611,7 @@ public class Repository {
         }
         File cwdFile = join(CWD, filename);
         writeContents(cwdFile, "<<<<<<< HEAD\r\n" + headContent
-                + "=======\r\n" + branchContent + ">>>>>>>");
+                + "\r\n=======\r\n" + branchContent + "\r\n>>>>>>>");
         return true;
     }
 

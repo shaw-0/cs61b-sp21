@@ -56,12 +56,20 @@ public class Main {
                 if (args.length == 2) {
                     Repository.checkBranch(args[1]);
                 } else if (args.length == 3) {
+                    if (!args[1].equals("--")) {
+                        System.out.println("Incorrect operands.");
+                        System.exit(0);
+                    }
                     if (!Repository.commitFileExist(args[2])) {
                         System.out.println("File does not exist in that commit.");
                         System.exit(0);
                     }
                     Repository.checkCommitFile(args[2]);
                 } else if (args.length == 4) {
+                    if (!args[2].equals("--")) {
+                        System.out.println("Incorrect operands.");
+                        System.exit(0);
+                    }
                     if (!Repository.commitExist(args[1])) {
                         System.out.println("No commit with that id exists.");
                         System.exit(0);
@@ -97,7 +105,7 @@ public class Main {
                 break;
             case "find":
                 repositoryCheck();
-                validateNumArgs(args, 1);
+                validateNumArgs(args, 2);
                 Repository.findMsg(args[1]);
                 break;
             case "status":
@@ -164,7 +172,7 @@ public class Main {
     public static void repositoryCheck() {
         if (!Repository.exist()) {
             System.out.println("Not in an initialized Gitlet directory.");
-            System.out.println();
+            System.exit(0);
         }
     }
 }
