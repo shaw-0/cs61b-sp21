@@ -84,7 +84,13 @@ public class Repository {
         String fatherRef = getHeadCommitRef();
         Commit father = getCommitFromRef(fatherRef);
         // create new commit
-        Commit child = new Commit(msg, new Date(), father.getDepth() + 1);
+        int depth = father.getDepth();
+        if (mergeFather != null) {
+            depth = Math.min(depth, getCommitFromRef(mergeFather).getDepth());
+        }
+        // father to child
+        depth = depth + 1;
+        Commit child = new Commit(msg, new Date(), depth);
         child.setMergeFather(mergeFather);
         child.trackFiles(father.getRefs());
         child.setFather(fatherRef);
@@ -531,34 +537,44 @@ public class Repository {
         writeContents(branchFile, fullRef);
     }
 
-    private static String findSpiltPoint(String masterRef, String branchRef) {
-        Commit deeper = getCommitFromRef(branchRef);
-        Commit lessDeeper = getCommitFromRef(masterRef);
-        String deeperRef = branchRef;
-        String lessDeeperRef = masterRef;
-        if (deeper.getDepth() < lessDeeper.getDepth()) {
-            Commit tmp = deeper;
-            deeper = lessDeeper;
-            lessDeeper = tmp;
-            deeperRef = masterRef;
-            lessDeeperRef = branchRef;
-        }
-        int deeperDepth = deeper.getDepth();
-        int lessDepth = lessDeeper.getDepth();
-        for (int i = deeperDepth; i > lessDepth; i--) {
-            deeperRef = deeper.getFather();
-            deeper = getCommitFromRef(deeperRef);
-        }
-        for (int i = lessDepth; i > 0; i--) {
-            if (deeperRef.equals(lessDeeperRef)) {
-                return deeperRef;
+    private static HashMap<String, Integer> getCommitFathers(String commitRef) {
+        HashMap<String, Integer> map = new HashMap<>();
+        ArrayDeque<String> commitQueue = new ArrayDeque<>();
+        commitQueue.addLast(commitRef);
+        while (!commitQueue.isEmpty()) {
+            String ref = commitQueue.getFirst();
+            Commit commit = getCommitFromRef(ref);
+            map.put(ref, commit.getDepth());
+            String father = commit.getFather();
+            if (father != null) {
+                commitQueue.addLast(father);
             }
-            deeperRef = deeper.getFather();
-            deeper = getCommitFromRef(deeperRef);
-            lessDeeperRef = lessDeeper.getFather();
-            lessDeeper = getCommitFromRef(lessDeeperRef);
+            father = commit.getMergeFather();
+            if (father != null) {
+                commitQueue.addLast(father);
+            }
+            commitQueue.removeFirst();
         }
-        return find("initial commit");
+        return map;
+    }
+
+    private static String findSpiltPoint(String masterRef, String branchRef) {
+        HashMap<String, Integer> masterFathers;
+        HashMap<String, Integer> branchFathers;
+        masterFathers = getCommitFathers(masterRef);
+        branchFathers = getCommitFathers(branchRef);
+        String maxDepthCommitRef = find("initial commit");
+        int maxDepth = 0;
+        for (String ref : masterFathers.keySet()) {
+            if (branchFathers.containsKey(ref)) {
+                int depth = branchFathers.get(ref);
+                if (depth > maxDepth) {
+                    maxDepthCommitRef = ref;
+                    maxDepth = depth;
+                }
+            }
+        }
+        return maxDepthCommitRef;
     }
 
     /** how file changed.
@@ -610,8 +626,8 @@ public class Repository {
             branchContent = readContentsAsString(branchFile);
         }
         File cwdFile = join(CWD, filename);
-        writeContents(cwdFile, "<<<<<<< HEAD\r\n" + headContent
-                + "\r\n=======\r\n" + branchContent + "\r\n>>>>>>>");
+        writeContents(cwdFile, "<<<<<<< HEAD\n" + headContent
+                + "=======\n" + branchContent + ">>>>>>>\n");
         return true;
     }
 
